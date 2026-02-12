@@ -59,6 +59,7 @@ typedef struct
     MediaLibrary musicLib;
     int activeGenreIdx;
     bool isTaggingMode;
+    bool selectedGenres[32];
     int genreSelectedIndex;
     int editingIndex;
     char currentVideoPath[MAX_PATH_LENGTH];
@@ -82,10 +83,9 @@ typedef struct
     int optionsSelectedIndex;
     bool confirmDelete;
     int currentMediaIndex;
-    // --- Genre filter screen state ---
-    int  genreFilteredSelectedIndex; // selected item index in the filtered media section
-    bool genreMediaFocus;            // true = keyboard focus is on media panel, false = genre cards
-    // ---------------------------------
+    int  genreFilteredSelectedIndex; 
+    bool genreMediaFocus;            
+    
     mpv_handle *mpv;
     mpv_render_context *mpv_ctx;
 } AppState;

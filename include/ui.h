@@ -5,11 +5,11 @@
 const char *GENRE_LIST[] = {
     "All", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family",
     "Fantasy", "History", "Horror", "Kids", "Music", "Musical", "Mystery",
-    "News", "Romance", "Sci-Fi & Fantasy", "Sport", "Thriller", "War"};
+    "News", "Romance", "Sci-Fi & Fantasy", "Sport", "Thriller", "War", NULL};
 const char *MUSIC_GENRE_LIST[] = {
     "All", "Alternative", "Blues", "Classical", "Country", "Dance", "Electronic",
     "Folk", "Funk", "Hip-Hop", "Indie", "Jazz", "Latin", "Metal", "Pop",
-    "Punk", "R&B", "Reggae", "Rock", "Soul"};
+    "Punk", "R&B", "Reggae", "Rock", "Soul", NULL};
 void DrawMainMenu(AppState *g);
 void UpdateMainMenu(AppState *g);
 void DrawMediaGrid(AppState *g, MediaLibrary *lib, const char *title);

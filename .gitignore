@@ -1,0 +1,12 @@
+# Ignore compiled binaries
+myview
+*.o
+obj/
+
+# Ignore settings and temp files
+settings.json
+/tmp/
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db

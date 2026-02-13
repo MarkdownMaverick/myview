@@ -16,4 +16,6 @@ void DrawMediaGrid(AppState *g, MediaLibrary *lib, const char *title);
 void DrawPlayer(AppState *g);
 void UpdateMediaGrid(AppState *g, MediaLibrary *lib);
 void UpdatePlayer(AppState *g);
+void DrawSettings(AppState *g);
+void UpdateSettings(AppState *g);
 #endif

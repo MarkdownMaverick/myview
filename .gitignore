@@ -10,3 +10,4 @@ settings.json
 # Ignore OS junk
 .DS_Store
 Thumbs.db
+usersettings.json

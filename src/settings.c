@@ -84,3 +84,40 @@ void LoadSettings(AppState *g)
     cJSON_Delete(root);
     UnloadFileText(data);
 }
+
+/* -----------------------------------------------------------------------
+ * User preferences  (theme choice, etc.)  →  usersettings.json
+ * ----------------------------------------------------------------------- */
+void SaveUserSettings(AppState *g)
+{
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return;
+
+    cJSON_AddNumberToObject(root, "theme", g->currentTheme);
+
+    char *rendered = cJSON_Print(root);
+    if (rendered)
+    {
+        SaveFileText("usersettings.json", rendered);
+        free(rendered);
+    }
+    cJSON_Delete(root);
+}
+
+void LoadUserSettings(AppState *g)
+{
+    if (!FileExists("usersettings.json")) return;
+
+    char *data = LoadFileText("usersettings.json");
+    if (!data) return;
+
+    cJSON *root = cJSON_Parse(data);
+    if (!root) { UnloadFileText(data); return; }
+
+    cJSON *themeItem = cJSON_GetObjectItem(root, "theme");
+    if (themeItem && cJSON_IsNumber(themeItem))
+        g->currentTheme = (int)themeItem->valuedouble;
+
+    cJSON_Delete(root);
+    UnloadFileText(data);
+}

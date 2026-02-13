@@ -41,6 +41,7 @@ int main(void)
     state.logoAnimatingOut = false;
     state.logoOffsetY = 0.0f;
     LoadSettings(&state);
+    LoadUserSettings(&state);
     RefreshThumbnails(&state.movieLib);
     RefreshThumbnails(&state.videoLib);
     RefreshThumbnails(&state.musicLib);
@@ -85,6 +86,10 @@ int main(void)
     if (FileExists("gui/background.png"))
     {
         state.backgroundTexture = LoadTexture("gui/background.png");
+    }
+    if (FileExists("gui/darktheme.png"))
+    {
+        state.darkThemeTexture = LoadTexture("gui/darktheme.png");
     }
     if (FileExists("sfx/startup.wav"))
     {
@@ -190,6 +195,9 @@ int main(void)
             UpdateMediaGrid(&state, &state.videoLib);
             break;
         case STATE_GENRE_SELECT:
+            break;
+        case STATE_SETTINGS:
+            UpdateSettings(&state);
             break;
         case STATE_PLAYING:
             UpdatePlayer(&state);
@@ -306,6 +314,9 @@ int main(void)
             case STATE_GENRE_SELECT:
                 DrawGenreGrid(&state);
                 break;
+            case STATE_SETTINGS:
+                DrawSettings(&state);
+                break;
             case STATE_PLAYING:
                 DrawPlayer(&state);
                 break;
@@ -332,6 +343,8 @@ int main(void)
         mpv_terminate_destroy(state.mpv);
     if (state.backgroundTexture.id > 0)
         UnloadTexture(state.backgroundTexture);
+    if (state.darkThemeTexture.id > 0)
+        UnloadTexture(state.darkThemeTexture);
     if (state.startupSound.frameCount > 0)
         UnloadSound(state.startupSound);
     if (state.selectSound.frameCount > 0)

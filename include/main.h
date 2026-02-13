@@ -85,7 +85,16 @@ typedef struct
     int currentMediaIndex;
     int  genreFilteredSelectedIndex; 
     bool genreMediaFocus;            
-    
+
+    /* Settings screen */
+    int  settingsSelectedBtn;   /* left-panel button 0-5          */
+    bool settingsPanelOpen;     /* right sub-panel visible         */
+    int  settingsPanelIdx;      /* selected item inside sub-panel  */
+
+    /* Theme */
+    int       currentTheme;       /* 0 = default, 1 = dark          */
+    Texture2D darkThemeTexture;   /* loaded from gui/darktheme.png  */
+
     mpv_handle *mpv;
     mpv_render_context *mpv_ctx;
 } AppState;
@@ -95,6 +104,8 @@ Rectangle GetButtonRect(int index);
 uint32_t simple_hash(const char *str);
 void SaveSettings(AppState *g);
 void LoadSettings(AppState *g);
+void SaveUserSettings(AppState *g);
+void LoadUserSettings(AppState *g);
 void GenerateOrLoadThumbnail(MediaLibrary *lib, int index);
 void RefreshThumbnails(MediaLibrary *lib);
 void DrawMediaGrid(AppState *g, MediaLibrary *lib, const char *title);
@@ -102,6 +113,8 @@ void DrawMainMenu(AppState *g);
 void UpdateMainMenu(AppState *g);
 void DrawPlayer(AppState *g);
 void DrawGenreGrid(AppState *g);
+void DrawSettings(AppState *g);
+void UpdateSettings(AppState *g);
 void PlayVideo(AppState *g, const char *path);
 void *get_rb_proc_address(void *ctx, const char *name);
 extern const char *GENRE_LIST[];

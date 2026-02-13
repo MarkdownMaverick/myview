@@ -22,12 +22,15 @@ const char **list = GetActiveGenreList(g);
 int count = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool genreMatch = true;
+// Replace the filtering logic in BOTH GetActualIndex and GetVisibleCount
+bool genreMatch = true; // Assume it matches until proven otherwise
 bool filteringActive = false;
+// Check if we are filtering by anything other than "All"
 if (!g->selectedGenres[0]) {
 for (int j = 1; j < 32; j++) {
 if (g->selectedGenres[j]) {
 filteringActive = true;
+// If the video DOES NOT have this selected genre, it's a mismatch
 if (strstr(lib->genres[i], list[j]) == NULL) {
 genreMatch = false;
 break;
@@ -35,6 +38,9 @@ break;
 }
 }
 }
+// If no specific genres were selected, and "All" isn't selected,
+// decide if you want to show everything or nothing.
+// Usually, if the user unselects everything, showing "All" is standard:
 if (!filteringActive && !g->selectedGenres[0]) genreMatch = true;
 bool favMatch = !g->showFavorites || lib->isFavorite[i];
 if (genreMatch && favMatch)
@@ -299,19 +305,26 @@ g->genreSelectedIndex = prev;
 PlaySound(g->selectSound);
 }
 }
+// Inside DrawGenreGrid(AppState *g)
 if (IsKeyPressed(KEY_ENTER))
 {
+// Toggle selection for the currently highlighted genre index
 g->selectedGenres[g->genreSelectedIndex] = !g->selectedGenres[g->genreSelectedIndex];
+// Logic for "All" (Index 0)
 if (g->genreSelectedIndex == 0) {
+// If "All" is selected, unselect everything else
 for(int k = 1; k < 32; k++) g->selectedGenres[k] = false;
 g->activeGenreIdx = 0;
 } else {
+// If a specific genre is selected, unselect "All"
 g->selectedGenres[0] = false;
 g->activeGenreIdx = g->genreSelectedIndex;
 }
+// Logic to handle "None Selected" -> Default back to "All"
 bool anySelected = false;
 for (int k = 0; k < 32; k++) if (g->selectedGenres[k]) anySelected = true;
 if (!anySelected) { g->selectedGenres[0] = true; g->activeGenreIdx = 0; }
+// Reset media focus whenever genre changes
 g->genreFilteredSelectedIndex = 0;
 g->genreMediaFocus = false;
 PlaySound(g->selectSound);
@@ -360,28 +373,28 @@ PlaySound(g->selectSound);
 }
 if (IsKeyPressed(KEY_ENTER) && filteredCount > 0)
 {
-int visIdx = 0;
-for (int i = 0; i < lib->count; i++)
-{
-bool match = g->selectedGenres[0];
-if (!match) {
-bool anySelected = false;
-for (int j = 1; j < 32; j++) {
-if (g->selectedGenres[j]) {
-anySelected = true;
-if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
-}
-}
-if (!anySelected) match = true;
-}
-if (!match) continue;
-if (visIdx == g->genreFilteredSelectedIndex)
-{
-PlayVideo(g, lib->paths[i]);
-return;
-}
-visIdx++;
-}
+    int visIdx = 0;
+    for (int i = 0; i < lib->count; i++)
+    {
+        bool match = g->selectedGenres[0];
+        if (!match) {
+            bool anySelected = false;
+            for (int j = 1; j < 32; j++) {
+                if (g->selectedGenres[j]) {
+                    anySelected = true;
+                    if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
+                }
+            }
+            if (!anySelected) match = true;
+        }
+        if (!match) continue;
+        if (visIdx == g->genreFilteredSelectedIndex)
+        {
+            PlayVideo(g, lib->paths[i]);
+            return;
+        }
+        visIdx++;
+    }
 }
 }
 if (IsKeyPressed(KEY_BACKSPACE))
@@ -487,9 +500,9 @@ DrawLineEx((Vector2){pad, sepY}, (Vector2){sw - pad, sepY}, 1.5f,
 (Color){80, 80, 110, 255});
 char filterLabel[128] = "Filtered Results";
 if (g->selectedGenres[0]) {
-snprintf(filterLabel, sizeof(filterLabel), "All  (%d items)", lib->count);
+    snprintf(filterLabel, sizeof(filterLabel), "All  (%d items)", lib->count);
 } else {
-snprintf(filterLabel, sizeof(filterLabel), "Selected Genres  (%d items)", filteredCount);
+    snprintf(filterLabel, sizeof(filterLabel), "Selected Genres  (%d items)", filteredCount);
 }
 Color labelColor = g->genreMediaFocus ? GOLD : LIGHTGRAY;
 DrawText(filterLabel, (int)pad, (int)(sepY + 8), 22, labelColor);
@@ -504,14 +517,14 @@ for (int i = 0; i < lib->count; i++)
 {
 bool match = g->selectedGenres[0];
 if (!match) {
-bool anySelected = false;
-for (int j = 1; j < 32; j++) {
-if (g->selectedGenres[j]) {
-anySelected = true;
-if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
-}
-}
-if (!anySelected) match = true;
+    bool anySelected = false;
+    for (int j = 1; j < 32; j++) {
+        if (g->selectedGenres[j]) {
+            anySelected = true;
+            if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
+        }
+    }
+    if (!anySelected) match = true;
 }
 if (!match)
 continue;
@@ -596,17 +609,20 @@ void DrawMainMenu(AppState *g)
 {
 float sw = (float)GetScreenWidth();
 float sh = (float)GetScreenHeight();
-if (g->backgroundTexture.id > 0)
 {
-DrawTexturePro(g->backgroundTexture,
-(Rectangle){0, 0,
-(float)g->backgroundTexture.width,
-(float)g->backgroundTexture.height},
+Texture2D *bgTex = (g->currentTheme == 1 && g->darkThemeTexture.id > 0)
+                   ? &g->darkThemeTexture
+                   : (g->backgroundTexture.id > 0 ? &g->backgroundTexture : NULL);
+if (bgTex)
+{
+DrawTexturePro(*bgTex,
+(Rectangle){0, 0, (float)bgTex->width, (float)bgTex->height},
 (Rectangle){0, 0, sw, sh}, (Vector2){0, 0}, 0.0f, WHITE);
 }
 else
 {
-ClearBackground(GetColor(0x0f0f1aff));
+ClearBackground(GetColor(g->currentTheme == 1 ? 0x0a0a14ff : 0x0f0f1aff));
+}
 }
 const float TOP_BAR_HEIGHT = 120.0f;
 DrawRectangleGradientV(0, 0, sw, TOP_BAR_HEIGHT,
@@ -664,18 +680,24 @@ for (int i = 0; i < n; i++)
 Rectangle btn = {leftMargin, startY + i * (buttonH + spacingY), buttonW, buttonH};
 bool hovered = CheckCollisionPointRec(mouse, btn);
 bool selected = (i == g->selectedIndex);
-Color colorSelected = {218, 165, 32, 240};
-Color colorHovered = {184, 134, 11, 200};
-Color colorDefault = {139, 90, 43, 160};
-Color bg = selected ? colorSelected : hovered ? colorHovered
-: colorDefault;
+Color colorSelected, colorHovered, colorDefault;
+if (g->currentTheme == 1) {
+    colorSelected = (Color){ 40,  90, 200, 240};
+    colorHovered  = (Color){ 25,  65, 155, 210};
+    colorDefault  = (Color){ 15,  30,  70, 175};
+} else {
+    colorSelected = (Color){218, 165,  32, 240};
+    colorHovered  = (Color){184, 134,  11, 200};
+    colorDefault  = (Color){139,  90,  43, 160};
+}
+Color bg = selected ? colorSelected : hovered ? colorHovered : colorDefault;
 float waveOffset = sinf(GetTime() * 2.0f + i * 0.5f) * 1.0f;
 Rectangle waveBtn = btn;
 waveBtn.y += waveOffset;
 DrawRectangleRounded(waveBtn, 0.25f, 12, bg);
 if (selected || hovered)
 DrawRectangleRoundedLinesEx(waveBtn, 0.25f, 12, 4.0f,
-selected ? YELLOW : WHITE);
+selected ? (g->currentTheme == 1 ? SKYBLUE : YELLOW) : WHITE);
 int fontSz = 38;
 int txtW = MeasureText(items[i], fontSz);
 DrawText(items[i],
@@ -951,6 +973,7 @@ if (genreActive)
 {
 char genreLabel[32];
 if (selectedCount == 1) {
+// Find the one selected genre to show its name
 int selectedIdx = 1;
 for (int i = 1; i < 32; i++) if (g->selectedGenres[i]) { selectedIdx = i; break; }
 const char **activeList = (g->currentScreen == STATE_MUSIC) ? MUSIC_GENRE_LIST : GENRE_LIST;
@@ -1047,6 +1070,7 @@ DrawText(opts[opt], optRect.x + 10, optRect.y + 5, 20, WHITE);
 }
 void UpdateMediaGrid(AppState *g, MediaLibrary *lib)
 {
+// Inside UpdateMediaGrid (around line 555)
 if (IsKeyPressed(KEY_BACKSPACE) && (!g->showingOptions))
 {
 for (int i = 0; i < 32; i++) g->selectedGenres[i] = false;
@@ -1300,4 +1324,278 @@ Fade(WHITE, g->seekBarAlpha));
 DrawText(totTime, (int)(barRect.x + barRect.width + 10), (int)(barY + 10), 20,
 Fade(WHITE, g->seekBarAlpha));
 }
+}
+/* =========================================================================
+ * SETTINGS SCREEN
+ * ========================================================================= */
+
+#define SETTINGS_BTN_COUNT 6
+
+static const char *SETTINGS_BTN_LABELS[SETTINGS_BTN_COUNT] = {
+    "CHANGE THEME",
+    "AUDIO SETTINGS",
+    "DISPLAY OPTIONS",
+    "LIBRARY PATHS",
+    "LANGUAGE",
+    "ABOUT"
+};
+
+static const char *THEME_OPTIONS[] = { "DEFAULT THEME", "DARK THEME", NULL };
+
+void UpdateSettings(AppState *g)
+{
+    float btnX  = 60.0f, btnY0 = 180.0f, btnW = 340.0f, btnH = 64.0f, gap = 16.0f;
+    Vector2 mouse = GetMousePosition();
+    (void)gap;
+
+    if (!g->settingsPanelOpen)
+    {
+        if (IsKeyPressed(KEY_UP))
+        {
+            if (g->settingsSelectedBtn > 0) g->settingsSelectedBtn--;
+            PlaySound(g->selectSound);
+        }
+        if (IsKeyPressed(KEY_DOWN))
+        {
+            if (g->settingsSelectedBtn < SETTINGS_BTN_COUNT - 1) g->settingsSelectedBtn++;
+            PlaySound(g->selectSound);
+        }
+        if ((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_RIGHT))
+            && g->settingsSelectedBtn == 0)
+        {
+            g->settingsPanelOpen = true;
+            g->settingsPanelIdx  = g->currentTheme;
+            PlaySound(g->selectSound);
+        }
+        if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE))
+        {
+            g->currentScreen     = STATE_MAIN_MENU;
+            g->selectedIndex     = 0;
+            g->settingsPanelOpen = false;
+            PlaySound(g->backSound);
+        }
+    }
+    else
+    {
+        if (IsKeyPressed(KEY_UP))
+        {
+            if (g->settingsPanelIdx > 0) g->settingsPanelIdx--;
+            PlaySound(g->selectSound);
+        }
+        if (IsKeyPressed(KEY_DOWN))
+        {
+            if (g->settingsPanelIdx < 1) g->settingsPanelIdx++;
+            PlaySound(g->selectSound);
+        }
+        if (IsKeyPressed(KEY_ENTER))
+        {
+            g->currentTheme      = g->settingsPanelIdx;
+            g->settingsPanelOpen = false;
+            SaveUserSettings(g);
+            PlaySound(g->selectSound);
+        }
+        if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_BACKSPACE)
+            || IsKeyPressed(KEY_ESCAPE))
+        {
+            g->settingsPanelOpen = false;
+            PlaySound(g->backSound);
+        }
+    }
+
+    /* Mouse – left button list */
+    float btnX2 = btnX, btnY02 = btnY0, btnW2 = btnW, btnH2 = btnH, gap2 = 16.0f;
+    for (int i = 0; i < SETTINGS_BTN_COUNT; i++)
+    {
+        Rectangle r = {btnX2, btnY02 + i * (btnH2 + gap2), btnW2, btnH2};
+        if (CheckCollisionPointRec(mouse, r))
+        {
+            if (GetMouseDelta().x != 0 || GetMouseDelta().y != 0)
+                g->settingsSelectedBtn = i;
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            {
+                g->settingsSelectedBtn = i;
+                if (i == 0)
+                {
+                    g->settingsPanelOpen = !g->settingsPanelOpen;
+                    if (g->settingsPanelOpen)
+                        g->settingsPanelIdx = g->currentTheme;
+                    PlaySound(g->selectSound);
+                }
+            }
+        }
+    }
+
+    /* Mouse – theme option list */
+    if (g->settingsPanelOpen)
+    {
+        float panelX = btnX2 + btnW2 + 40.0f;
+        float panelY = btnY02;
+        float optW   = 460.0f, optH = 72.0f, optGap = 14.0f;
+        for (int i = 0; i < 2; i++)
+        {
+            Rectangle r = {panelX + 20.0f, panelY + 60.0f + i * (optH + optGap),
+                           optW - 40.0f, optH};
+            if (CheckCollisionPointRec(mouse, r))
+            {
+                if (GetMouseDelta().x != 0 || GetMouseDelta().y != 0)
+                    g->settingsPanelIdx = i;
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    g->currentTheme      = i;
+                    g->settingsPanelIdx  = i;
+                    g->settingsPanelOpen = false;
+                    SaveUserSettings(g);
+                    PlaySound(g->selectSound);
+                }
+            }
+        }
+    }
+}
+
+void DrawSettings(AppState *g)
+{
+    float sw  = (float)GetScreenWidth();
+    float sh  = (float)GetScreenHeight();
+
+    /* Background */
+    DrawRectangle(0, 0, (int)sw, (int)sh, (Color){12, 12, 20, 255});
+    DrawRectangleGradientV(0, 0, (int)sw, 160,
+                           (Color){30, 10, 60, 255}, (Color){12, 12, 20, 0});
+
+    /* Title */
+    DrawText("SETTINGS", 60, 26, 52, GOLD);
+    DrawLineEx((Vector2){60, 90}, (Vector2){sw - 60, 90}, 1.5f,
+               (Color){80, 60, 120, 255});
+
+    /* Hint bar */
+    const char *hint = g->settingsPanelOpen
+        ? "UP/DOWN: navigate  |  ENTER: apply  |  LEFT / BACKSPACE: close panel"
+        : "UP/DOWN: navigate  |  ENTER / RIGHT: open  |  BACKSPACE: back";
+    DrawText(hint, 60, (int)(sh - 40), 18, GRAY);
+
+    /* Left-panel buttons */
+    float btnX  = 60.0f, btnY0 = 180.0f, btnW = 340.0f, btnH = 64.0f, gap = 16.0f;
+    Vector2 mouse = GetMousePosition();
+
+    for (int i = 0; i < SETTINGS_BTN_COUNT; i++)
+    {
+        Rectangle r = {btnX, btnY0 + i * (btnH + gap), btnW, btnH};
+        bool isSel  = (i == g->settingsSelectedBtn) && !g->settingsPanelOpen;
+        bool isOpen = (i == 0) && g->settingsPanelOpen;
+        bool isHov  = CheckCollisionPointRec(mouse, r);
+
+        Color bg = isOpen  ? (Color){60, 35, 110, 255}
+                 : isSel   ? (Color){55, 30, 100, 255}
+                 : isHov   ? (Color){45, 25,  80, 220}
+                 : (Color){28, 22,  45, 200};
+        DrawRectangleRounded(r, 0.22f, 10, bg);
+
+        float bthick = (isSel || isOpen) ? 3.0f : 1.5f;
+        Color bc = isOpen  ? PURPLE
+                 : isSel   ? YELLOW
+                 : isHov   ? SKYBLUE
+                 : (Color){70, 55, 100, 255};
+        DrawRectangleRoundedLinesEx(r, 0.22f, 10, bthick, bc);
+
+        int fsz = 24;
+        Color tc = isOpen ? GOLD : WHITE;
+        DrawText(SETTINGS_BTN_LABELS[i],
+                 (int)(r.x + 22), (int)(r.y + r.height / 2 - fsz / 2), fsz, tc);
+
+        /* Arrow for CHANGE THEME */
+        if (i == 0)
+            DrawText(isOpen ? "<" : ">",
+                     (int)(r.x + r.width - 28),
+                     (int)(r.y + r.height / 2 - 12), 24,
+                     isOpen ? GOLD : LIGHTGRAY);
+
+        /* Coming soon tag on placeholder buttons */
+        if (i > 0)
+            DrawText("(coming soon)",
+                     (int)(r.x + r.width - 148),
+                     (int)(r.y + r.height / 2 - 9),
+                     14, (Color){120, 100, 160, 200});
+    }
+
+    /* Right sub-panel – CHANGE THEME */
+    if (g->settingsPanelOpen)
+    {
+        float panelX = btnX + btnW + 40.0f;
+        float panelY = btnY0;
+        float panelW = 460.0f;
+        float optH   = 72.0f, optGap = 14.0f;
+        int   nOpts  = 2;
+        float panelH = 60.0f + nOpts * (optH + optGap) + 24.0f;
+
+        /* Shadow */
+        DrawRectangleRounded((Rectangle){panelX + 6, panelY + 6, panelW, panelH},
+                             0.18f, 10, (Color){0, 0, 0, 120});
+        /* Body */
+        DrawRectangleRounded((Rectangle){panelX, panelY, panelW, panelH},
+                             0.18f, 10, (Color){22, 16, 40, 248});
+        DrawRectangleRoundedLinesEx((Rectangle){panelX, panelY, panelW, panelH},
+                                   0.18f, 10, 2.0f, (Color){110, 75, 190, 255});
+
+        /* Panel title */
+        DrawText("SELECT THEME",
+                 (int)(panelX + 20), (int)(panelY + 16), 22, GOLD);
+        DrawLineEx((Vector2){panelX + 20, panelY + 48},
+                   (Vector2){panelX + panelW - 20, panelY + 48},
+                   1.0f, (Color){80, 60, 120, 200});
+
+        /* Colour swatches per theme */
+        static const Color SWATCHES[2][3] = {
+            {{218,165, 32,255},{184,134, 11,255},{139, 90, 43,255}},  /* Default */
+            {{ 40, 90,200,255},{ 25, 65,155,255},{ 15, 30, 70,255}}   /* Dark    */
+        };
+
+        for (int i = 0; i < nOpts; i++)
+        {
+            Rectangle r = {panelX + 20.0f,
+                           panelY + 60.0f + i * (optH + optGap),
+                           panelW - 40.0f, optH};
+            bool isSel  = (i == g->settingsPanelIdx);
+            bool isHov  = CheckCollisionPointRec(mouse, r);
+            bool active = (i == g->currentTheme);
+
+            Color bg2 = isSel  ? (Color){55, 35, 100, 255}
+                      : isHov  ? (Color){40, 25,  75, 220}
+                      : (Color){30, 20,  55, 200};
+            DrawRectangleRounded(r, 0.2f, 8, bg2);
+
+            float tbk = isSel ? 3.0f : 1.5f;
+            Color tborder = isSel  ? YELLOW
+                          : isHov  ? SKYBLUE
+                          : (Color){70, 55, 100, 200};
+            DrawRectangleRoundedLinesEx(r, 0.2f, 8, tbk, tborder);
+
+            /* Swatches */
+            for (int s = 0; s < 3; s++)
+            {
+                Rectangle sw2 = {r.x + 14.0f + s * 28.0f,
+                                 r.y + r.height / 2 - 10.0f, 22.0f, 20.0f};
+                DrawRectangleRounded(sw2, 0.3f, 6, SWATCHES[i][s]);
+            }
+
+            /* Theme name */
+            DrawText(THEME_OPTIONS[i],
+                     (int)(r.x + 112), (int)(r.y + r.height / 2 - 12),
+                     24, WHITE);
+
+            /* Active badge */
+            if (active)
+            {
+                DrawText("✓ ACTIVE",
+                         (int)(r.x + r.width - 102),
+                         (int)(r.y + r.height / 2 - 11), 18, GREEN);
+            }
+            else if (isSel)
+            {
+                DrawText("[ENTER]",
+                         (int)(r.x + r.width - 86),
+                         (int)(r.y + r.height / 2 - 11), 16,
+                         Fade(YELLOW, 0.85f));
+            }
+        }
+    }
 }

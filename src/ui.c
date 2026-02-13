@@ -22,8 +22,20 @@ const char **list = GetActiveGenreList(g);
 int count = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool genreMatch = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
+bool genreMatch = true;
+bool filteringActive = false;
+if (!g->selectedGenres[0]) {
+for (int j = 1; j < 32; j++) {
+if (g->selectedGenres[j]) {
+filteringActive = true;
+if (strstr(lib->genres[i], list[j]) == NULL) {
+genreMatch = false;
+break;
+}
+}
+}
+}
+if (!filteringActive && !g->selectedGenres[0]) genreMatch = true;
 bool favMatch = !g->showFavorites || lib->isFavorite[i];
 if (genreMatch && favMatch)
 {
@@ -40,8 +52,25 @@ const char **list = GetActiveGenreList(g);
 int count = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool genreMatch = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
+bool genreMatch = false;
+bool hasSelectedGenre = false;
+if (g->activeGenreIdx == 0) {
+genreMatch = true;
+} else {
+for (int j = 1; j < 32; j++)
+{
+if (g->selectedGenres[j])
+{
+hasSelectedGenre = true;
+if (strstr(lib->genres[i], list[j]) != NULL)
+{
+genreMatch = true;
+break;
+}
+}
+}
+if (!hasSelectedGenre) genreMatch = true;
+}
 bool favMatch = !g->showFavorites || lib->isFavorite[i];
 if (genreMatch && favMatch)
 count++;
@@ -218,10 +247,21 @@ float thumbH = thumbW * 0.5625f;
 int filteredCount = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool match = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
-if (match)
-filteredCount++;
+bool match = true;
+bool filtering = false;
+if (!g->selectedGenres[0]) {
+for (int j = 1; j < 32; j++) {
+if (g->selectedGenres[j]) {
+filtering = true;
+if (strstr(lib->genres[i], list[j]) == NULL) {
+match = false;
+break;
+}
+}
+}
+}
+if (!filtering && !g->selectedGenres[0]) match = true;
+if (match) filteredCount++;
 }
 if (!g->genreMediaFocus)
 {
@@ -261,20 +301,19 @@ PlaySound(g->selectSound);
 }
 if (IsKeyPressed(KEY_ENTER))
 {
+g->selectedGenres[g->genreSelectedIndex] = !g->selectedGenres[g->genreSelectedIndex];
+if (g->genreSelectedIndex == 0) {
+for(int k = 1; k < 32; k++) g->selectedGenres[k] = false;
+g->activeGenreIdx = 0;
+} else {
+g->selectedGenres[0] = false;
 g->activeGenreIdx = g->genreSelectedIndex;
+}
+bool anySelected = false;
+for (int k = 0; k < 32; k++) if (g->selectedGenres[k]) anySelected = true;
+if (!anySelected) { g->selectedGenres[0] = true; g->activeGenreIdx = 0; }
 g->genreFilteredSelectedIndex = 0;
-filteredCount = 0;
-for (int i = 0; i < lib->count; i++)
-{
-bool match = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
-if (match)
-filteredCount++;
-}
-if (filteredCount > 0)
-{
-g->genreMediaFocus = true;
-}
+g->genreMediaFocus = false;
 PlaySound(g->selectSound);
 }
 }
@@ -324,18 +363,21 @@ if (IsKeyPressed(KEY_ENTER) && filteredCount > 0)
 int visIdx = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool match = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
-if (!match)
-continue;
+bool match = g->selectedGenres[0];
+if (!match) {
+bool anySelected = false;
+for (int j = 1; j < 32; j++) {
+if (g->selectedGenres[j]) {
+anySelected = true;
+if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
+}
+}
+if (!anySelected) match = true;
+}
+if (!match) continue;
 if (visIdx == g->genreFilteredSelectedIndex)
 {
-g->selectedIndex = i;
-g->currentMediaIndex = i;
-g->showingOptions = true;
-g->optionsSelectedIndex = 0;
-g->currentScreen = g->previousScreen;
-PlaySound(g->selectSound);
+PlayVideo(g, lib->paths[i]);
 return;
 }
 visIdx++;
@@ -367,7 +409,7 @@ topH + row * (cardH + gSpacing),
 cardW, cardH};
 bool isSelected = (i == g->genreSelectedIndex) && !g->genreMediaFocus;
 bool isHovered = CheckCollisionPointRec(mouse, card);
-bool isActive = (i == g->activeGenreIdx);
+bool isActive = g->selectedGenres[i];
 if (isHovered && !g->genreMediaFocus &&
 (GetMouseDelta().x != 0 || GetMouseDelta().y != 0))
 g->genreSelectedIndex = i;
@@ -424,23 +466,31 @@ if (isActive)
 DrawText("* ACTIVE", (int)(card.x + 8), (int)(card.y + 5), 13, GREEN);
 if (isHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 {
-g->activeGenreIdx = i;
 g->genreSelectedIndex = i;
+g->selectedGenres[i] = !g->selectedGenres[i];
+if (i == 0) {
+for(int k = 1; k < 32; k++) g->selectedGenres[k] = false;
+g->activeGenreIdx = 0;
+} else {
+g->selectedGenres[0] = false;
+g->activeGenreIdx = i;
+}
+bool anySelected = false;
+for (int k = 0; k < 32; k++) if (g->selectedGenres[k]) anySelected = true;
+if (!anySelected) { g->selectedGenres[0] = true; g->activeGenreIdx = 0; }
 g->genreFilteredSelectedIndex = 0;
-g->genreMediaFocus = true;
+g->genreMediaFocus = false;
 PlaySound(g->selectSound);
 }
 }
 DrawLineEx((Vector2){pad, sepY}, (Vector2){sw - pad, sepY}, 1.5f,
 (Color){80, 80, 110, 255});
-char filterLabel[80];
-if (g->activeGenreIdx == 0)
-snprintf(filterLabel, sizeof(filterLabel), "All  (%d item%s)",
-lib->count, lib->count == 1 ? "" : "s");
-else
-snprintf(filterLabel, sizeof(filterLabel), "%s  (%d item%s)",
-list[g->activeGenreIdx],
-filteredCount, filteredCount == 1 ? "" : "s");
+char filterLabel[128] = "Filtered Results";
+if (g->selectedGenres[0]) {
+snprintf(filterLabel, sizeof(filterLabel), "All  (%d items)", lib->count);
+} else {
+snprintf(filterLabel, sizeof(filterLabel), "Selected Genres  (%d items)", filteredCount);
+}
 Color labelColor = g->genreMediaFocus ? GOLD : LIGHTGRAY;
 DrawText(filterLabel, (int)pad, (int)(sepY + 8), 22, labelColor);
 if (filteredCount == 0 && g->activeGenreIdx != 0)
@@ -452,8 +502,17 @@ return;
 int visIdx = 0;
 for (int i = 0; i < lib->count; i++)
 {
-bool match = (g->activeGenreIdx == 0) ||
-(strstr(lib->genres[i], list[g->activeGenreIdx]) != NULL);
+bool match = g->selectedGenres[0];
+if (!match) {
+bool anySelected = false;
+for (int j = 1; j < 32; j++) {
+if (g->selectedGenres[j]) {
+anySelected = true;
+if (strstr(lib->genres[i], list[j]) != NULL) { match = true; break; }
+}
+}
+if (!anySelected) match = true;
+}
 if (!match)
 continue;
 if (lib->thumbnails[i].id == 0)
@@ -882,25 +941,29 @@ Fade(BLACK, 0.5f), Fade(BLUE, 0.0f));
 DrawText(title, padding, 20, 50, GOLD);
 Rectangle genreBtn = {sw - 810, 25, 180, 50};
 bool genreHover = CheckCollisionPointRec(GetMousePosition(), genreBtn);
-bool genreActive = (g->activeGenreIdx != 0);
+int selectedCount = 0;
+bool genreActive = (selectedCount > 0 && !g->selectedGenres[0]);
 DrawRectangleRounded(genreBtn, 0.3f, 10,
 genreActive ? (genreHover ? LIME : GREEN)
 : (genreHover ? GOLD : ORANGE));
+for (int i = 1; i < 32; i++) if (g->selectedGenres[i]) selectedCount++;
 if (genreActive)
 {
-const char **activeList = (g->currentScreen == STATE_MUSIC)
-? MUSIC_GENRE_LIST
-: GENRE_LIST;
 char genreLabel[32];
-snprintf(genreLabel, sizeof(genreLabel), "%.14s", activeList[g->activeGenreIdx]);
+if (selectedCount == 1) {
+int selectedIdx = 1;
+for (int i = 1; i < 32; i++) if (g->selectedGenres[i]) { selectedIdx = i; break; }
+const char **activeList = (g->currentScreen == STATE_MUSIC) ? MUSIC_GENRE_LIST : GENRE_LIST;
+snprintf(genreLabel, sizeof(genreLabel), "%.14s", activeList[selectedIdx]);
+} else {
+snprintf(genreLabel, sizeof(genreLabel), "%d Genres", selectedCount);
+}
 int glw = MeasureText(genreLabel, 20);
-DrawText(genreLabel,
-(int)(genreBtn.x + genreBtn.width / 2 - glw / 2),
-(int)(genreBtn.y + 15), 20, BLACK);
+DrawText(genreLabel, (int)(genreBtn.x + genreBtn.width/2 - glw/2), (int)(genreBtn.y + 15), 20, BLACK);
 }
 else
 {
-DrawText("GENRE", (int)(genreBtn.x + 30), (int)(genreBtn.y + 15), 30, BLACK);
+DrawText("ALL GENRES", (int)(genreBtn.x + 15), (int)(genreBtn.y + 15), 24, BLACK);
 }
 Rectangle favBtn = {sw - 410, 25, 180, 50};
 bool favHover = CheckCollisionPointRec(GetMousePosition(), favBtn);
@@ -986,9 +1049,7 @@ void UpdateMediaGrid(AppState *g, MediaLibrary *lib)
 {
 if (IsKeyPressed(KEY_BACKSPACE) && (!g->showingOptions))
 {
-for (int i = 0; i < 32; i++)
-g->selectedGenres[i] = false;
-g->activeGenreIdx = 0;
+for (int i = 0; i < 32; i++) g->selectedGenres[i] = false;
 g->showFavorites = false;
 g->currentScreen = STATE_MAIN_MENU;
 g->selectedIndex = 0;

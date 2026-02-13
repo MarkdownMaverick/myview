@@ -86,14 +86,14 @@ typedef struct
     int  genreFilteredSelectedIndex; 
     bool genreMediaFocus;            
 
-    /* Settings screen */
-    int  settingsSelectedBtn;   /* left-panel button 0-5          */
-    bool settingsPanelOpen;     /* right sub-panel visible         */
-    int  settingsPanelIdx;      /* selected item inside sub-panel  */
+    
+    int  settingsSelectedBtn;   
+    bool settingsPanelOpen;     
+    int  settingsPanelIdx;      
 
-    /* Theme */
-    int       currentTheme;       /* 0 = default, 1 = dark          */
-    Texture2D darkThemeTexture;   /* loaded from gui/darktheme.png  */
+    
+    int       currentTheme;       
+    Texture2D darkThemeTexture;   
 
     mpv_handle *mpv;
     mpv_render_context *mpv_ctx;

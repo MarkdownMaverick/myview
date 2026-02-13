@@ -85,9 +85,7 @@ void LoadSettings(AppState *g)
     UnloadFileText(data);
 }
 
-/* -----------------------------------------------------------------------
- * User preferences  (theme choice, etc.)  →  usersettings.json
- * ----------------------------------------------------------------------- */
+
 void SaveUserSettings(AppState *g)
 {
     cJSON *root = cJSON_CreateObject();

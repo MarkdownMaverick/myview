@@ -1,6 +1,5 @@
 #ifndef UI_H
 #define UI_H
-
 #include "main.h"
 const char *GENRE_LIST[] = {
     "All", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family",

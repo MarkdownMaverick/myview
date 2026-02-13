@@ -981,7 +981,7 @@ DrawRectangleRounded(favBtn, 0.3f, 10,
 favActive ? (favHover ? LIME : GREEN) : (favHover ? GOLD : ORANGE));
 DrawText("FAVORITES", (int)(favBtn.x + 20), (int)(favBtn.y + 15), 30, BLACK);
 if (favActive)
-DrawText("✓", (int)(favBtn.x + favBtn.width - 35), (int)(favBtn.y + 15), 30, BLACK);
+DrawText("FAV", (int)(favBtn.x + favBtn.width - 35), (int)(favBtn.y + 15), 30, BLACK);
 Rectangle addBtn = {sw - 200, 25, 180, 50};
 bool addHover = CheckCollisionPointRec(GetMousePosition(), addBtn);
 DrawRectangleRounded(addBtn, 0.3f, 10, addHover ? LIME : GREEN);
@@ -1053,6 +1053,60 @@ DrawRectangleRounded(optRect, 0.2f, 10, selected ? BLUE : SKYBLUE);
 DrawText(opts[opt], optRect.x + 10, optRect.y + 5, 20, WHITE);
 }
 }
+if (g->showingMoveMenu && g->currentMediaIndex >= 0 && g->currentMediaIndex < lib->count)
+{
+const char *moveNames[2];
+int         moveCnt = 0;
+if (lib != &g->movieLib) moveNames[moveCnt++] = "Movies";
+if (lib != &g->videoLib) moveNames[moveCnt++] = "TV Shows";
+if (lib != &g->musicLib) moveNames[moveCnt++] = "Music";
+float popW = 300.0f;
+float popH = 60.0f + moveCnt * 52.0f + 36.0f;
+Rectangle moveRect = {sw / 2 - popW / 2, sh / 2 - popH / 2, popW, popH};
+DrawRectangleRounded((Rectangle){moveRect.x + 6, moveRect.y + 6, moveRect.width, moveRect.height},
+0.2f, 10, Fade(BLACK, 0.55f));
+DrawRectangleRounded(moveRect, 0.2f, 10, (Color){25, 25, 40, 252});
+for (int g2 = 1; g2 <= 4; g2++)
+{
+Rectangle glow = {moveRect.x - g2 * 2, moveRect.y - g2 * 2,
+moveRect.width  + g2 * 4,
+moveRect.height + g2 * 4};
+DrawRectangleRoundedLinesEx(glow, 0.2f, 10, 1.5f, Fade(SKYBLUE, 0.15f / g2));
+}
+DrawRectangleRoundedLinesEx(moveRect, 0.2f, 10, 2.5f, SKYBLUE);
+int titleW = MeasureText("Move to...", 26);
+DrawText("Move to...",
+(int)(moveRect.x + moveRect.width / 2 - titleW / 2),
+(int)(moveRect.y + 14), 26, WHITE);
+DrawLineEx((Vector2){moveRect.x + 14, moveRect.y + 48},
+(Vector2){moveRect.x + moveRect.width - 14, moveRect.y + 48},
+1.0f, (Color){70, 90, 140, 200});
+for (int i = 0; i < moveCnt; i++)
+{
+Rectangle opt = {moveRect.x + 20,
+moveRect.y + 58 + i * 52.0f,
+moveRect.width - 40, 42};
+bool sel = (i == g->moveMenuSelectedIndex);
+Color bg  = sel ? (Color){30, 100, 200, 255} : (Color){50, 55, 80, 220};
+DrawRectangleRounded(opt, 0.25f, 10, bg);
+DrawRectangleRoundedLinesEx(opt, 0.25f, 10, sel ? 3.0f : 1.5f,
+sel ? YELLOW : (Color){80, 100, 160, 200});
+int tw = MeasureText(moveNames[i], 22);
+DrawText(moveNames[i],
+(int)(opt.x + opt.width / 2 - tw / 2),
+(int)(opt.y + opt.height / 2 - 11),
+22, WHITE);
+if (sel)
+DrawText(">",
+(int)(opt.x + opt.width - 24),
+(int)(opt.y + opt.height / 2 - 11),
+20, YELLOW);
+}
+DrawText("BACKSPACE: cancel",
+(int)(moveRect.x + 14),
+(int)(moveRect.y + moveRect.height - 26),
+15, GRAY);
+}
 }
 void UpdateMediaGrid(AppState *g, MediaLibrary *lib)
 {
@@ -1114,6 +1168,12 @@ if (g->showingOptions || g->confirmDelete)
 {
 if (IsKeyPressed(KEY_BACKSPACE))
 {
+if (g->showingMoveMenu)
+{
+g->showingMoveMenu = false;
+PlaySound(g->backSound);
+return;
+}
 g->confirmDelete = false;
 g->showingOptions = false;
 PlaySound(g->backSound);
@@ -1149,6 +1209,58 @@ g->showingOptions = false;
 }
 return;
 }
+if (g->showingMoveMenu)
+{
+MediaLibrary *moveTargets[2];
+const char   *moveTargetNames[2];
+int           moveTargetCount = 0;
+if (lib != &g->movieLib) { moveTargets[moveTargetCount] = &g->movieLib; moveTargetNames[moveTargetCount] = "Movies";   moveTargetCount++; }
+if (lib != &g->videoLib) { moveTargets[moveTargetCount] = &g->videoLib; moveTargetNames[moveTargetCount] = "TV Shows"; moveTargetCount++; }
+if (lib != &g->musicLib) { moveTargets[moveTargetCount] = &g->musicLib; moveTargetNames[moveTargetCount] = "Music";    moveTargetCount++; }
+if (IsKeyPressed(KEY_UP))
+{
+if (g->moveMenuSelectedIndex > 0) g->moveMenuSelectedIndex--;
+PlaySound(g->selectSound);
+}
+if (IsKeyPressed(KEY_DOWN))
+{
+if (g->moveMenuSelectedIndex < moveTargetCount - 1) g->moveMenuSelectedIndex++;
+PlaySound(g->selectSound);
+}
+if (IsKeyPressed(KEY_ENTER))
+{
+int idx = g->currentMediaIndex;
+MediaLibrary *dest = moveTargets[g->moveMenuSelectedIndex];
+if (dest->count < MAX_MEDIA_FILES)
+{
+strncpy(dest->paths[dest->count], lib->paths[idx], MAX_PATH_LENGTH - 1);
+dest->paths[dest->count][MAX_PATH_LENGTH - 1] = '\0';
+strncpy(dest->genres[dest->count], lib->genres[idx], 31);
+dest->genres[dest->count][31] = '\0';
+dest->isFavorite[dest->count] = lib->isFavorite[idx];
+dest->thumbnails[dest->count] = lib->thumbnails[idx];
+dest->count++;
+lib->thumbnails[idx] = (Texture2D){0};
+for (int i = idx; i < lib->count - 1; i++)
+{
+strcpy(lib->paths[i],    lib->paths[i + 1]);
+strcpy(lib->genres[i],   lib->genres[i + 1]);
+lib->thumbnails[i]  = lib->thumbnails[i + 1];
+lib->isFavorite[i]  = lib->isFavorite[i + 1];
+}
+lib->thumbnails[lib->count - 1] = (Texture2D){0};
+lib->count--;
+SaveSettings(g);
+int newTotalCount = GetVisibleCount(lib, g);
+if (g->selectedIndex >= newTotalCount)
+g->selectedIndex = MAX(0, newTotalCount - 1);
+}
+g->showingMoveMenu = false;
+g->showingOptions  = false;
+PlaySound(g->selectSound);
+}
+return;
+}
 if (g->showingOptions)
 {
 if (IsKeyPressed(KEY_DOWN))
@@ -1168,7 +1280,9 @@ lib->isFavorite[idx] = !lib->isFavorite[idx];
 SaveSettings(g);
 break;
 case 2:
-g->showingOptions = false;
+g->showingMoveMenu = true;
+g->moveMenuSelectedIndex = 0;
+PlaySound(g->selectSound);
 break;
 case 3:
 g->editingIndex = g->currentMediaIndex;
@@ -1310,14 +1424,15 @@ DrawText(totTime, (int)(barRect.x + barRect.width + 10), (int)(barY + 10), 20,
 Fade(WHITE, g->seekBarAlpha));
 }
 }
-#define SETTINGS_BTN_COUNT 6
+#define SETTINGS_BTN_COUNT 7
 static const char *SETTINGS_BTN_LABELS[SETTINGS_BTN_COUNT] = {
 "CHANGE THEME",
 "AUDIO SETTINGS",
 "DISPLAY OPTIONS",
 "LIBRARY PATHS",
 "LANGUAGE",
-"ABOUT"
+"ABOUT",
+"IMPORT ALL MP4"
 };
 static const char *THEME_OPTIONS[] = { "DEFAULT THEME", "DARK THEME", NULL };
 void UpdateSettings(AppState *g)
@@ -1325,6 +1440,14 @@ void UpdateSettings(AppState *g)
 float btnX  = 60.0f, btnY0 = 180.0f, btnW = 340.0f, btnH = 64.0f, gap = 16.0f;
 Vector2 mouse = GetMousePosition();
 (void)gap;
+if (g->importDone && g->importFinishedTime == 0.0)
+g->importFinishedTime = GetTime();
+if (g->importDone && g->importFinishedTime > 0.0 &&
+GetTime() - g->importFinishedTime > 10.0)
+{
+g->importDone         = false;
+g->importFinishedTime = 0.0;
+}
 if (!g->settingsPanelOpen)
 {
 if (IsKeyPressed(KEY_UP))
@@ -1342,6 +1465,11 @@ if ((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_RIGHT))
 {
 g->settingsPanelOpen = true;
 g->settingsPanelIdx  = g->currentTheme;
+PlaySound(g->selectSound);
+}
+if (IsKeyPressed(KEY_ENTER) && g->settingsSelectedBtn == 6 && !g->importRunning)
+{
+ImportAllMp4(g);
 PlaySound(g->selectSound);
 }
 if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressed(KEY_ESCAPE))
@@ -1396,6 +1524,11 @@ if (g->settingsPanelOpen)
 g->settingsPanelIdx = g->currentTheme;
 PlaySound(g->selectSound);
 }
+else if (i == 6 && !g->importRunning)
+{
+ImportAllMp4(g);
+PlaySound(g->selectSound);
+}
 }
 }
 }
@@ -1446,13 +1579,26 @@ Rectangle r = {btnX, btnY0 + i * (btnH + gap), btnW, btnH};
 bool isSel  = (i == g->settingsSelectedBtn) && !g->settingsPanelOpen;
 bool isOpen = (i == 0) && g->settingsPanelOpen;
 bool isHov  = CheckCollisionPointRec(mouse, r);
-Color bg = isOpen  ? (Color){60, 35, 110, 255}
+bool isImport = (i == 6);
+Color bg;
+if (isImport && g->importRunning)
+bg = (Color){20, 60, 30, 230};
+else if (isImport && g->importDone)
+bg = (Color){20, 70, 25, 230};
+else
+bg = isOpen  ? (Color){60, 35, 110, 255}
 : isSel   ? (Color){55, 30, 100, 255}
 : isHov   ? (Color){45, 25,  80, 220}
 : (Color){28, 22,  45, 200};
 DrawRectangleRounded(r, 0.22f, 10, bg);
 float bthick = (isSel || isOpen) ? 3.0f : 1.5f;
-Color bc = isOpen  ? PURPLE
+Color bc;
+if (isImport && g->importRunning)
+bc = GREEN;
+else if (isImport && g->importDone)
+bc = LIME;
+else
+bc = isOpen  ? PURPLE
 : isSel   ? YELLOW
 : isHov   ? SKYBLUE
 : (Color){70, 55, 100, 255};
@@ -1466,7 +1612,34 @@ DrawText(isOpen ? "<" : ">",
 (int)(r.x + r.width - 28),
 (int)(r.y + r.height / 2 - 12), 24,
 isOpen ? GOLD : LIGHTGRAY);
-if (i > 0)
+else if (isImport && g->importRunning)
+{
+int dots  = ((int)(GetTime() * 3.0)) % 4;
+char spin[8] = "";
+for (int d = 0; d < dots; d++) strcat(spin, ".");
+int sw2 = MeasureText(spin, 22);
+DrawText(spin, (int)(r.x + r.width - sw2 - 14),
+(int)(r.y + r.height / 2 - 11), 22, GREEN);
+char counter[48];
+snprintf(counter, sizeof(counter), "%d found", g->importTotal);
+int cw = MeasureText(counter, 16);
+DrawText(counter, (int)(r.x + r.width - cw - 14),
+(int)(r.y + r.height / 2 + 6), 16, LIME);
+}
+else if (isImport && g->importDone)
+{
+char result[48];
+snprintf(result, sizeof(result), "+%d", g->importAdded);
+int rw = MeasureText(result, 22);
+DrawText(result, (int)(r.x + r.width - rw - 14),
+(int)(r.y + r.height / 2 - 11), 22, GREEN);
+}
+else if (isImport)
+DrawText("ENTER to scan",
+(int)(r.x + r.width - 148),
+(int)(r.y + r.height / 2 - 9),
+16, (Color){100, 200, 120, 200});
+else if (i > 0 && i < 6)
 DrawText("(coming soon)",
 (int)(r.x + r.width - 148),
 (int)(r.y + r.height / 2 - 9),
@@ -1523,7 +1696,7 @@ DrawText(THEME_OPTIONS[i],
 24, WHITE);
 if (active)
 {
-DrawText("✓ ACTIVE",
+DrawText("âœ“ ACTIVE",
 (int)(r.x + r.width - 102),
 (int)(r.y + r.height / 2 - 11), 18, GREEN);
 }
@@ -1534,6 +1707,79 @@ DrawText("[ENTER]",
 (int)(r.y + r.height / 2 - 11), 16,
 Fade(YELLOW, 0.85f));
 }
+}
+}
+if (g->importRunning || g->importDone)
+{
+float panelX = btnX + btnW + 40.0f;
+float panelY = btnY0 + 6 * (btnH + gap);
+float panelW = 460.0f;
+float panelH = 224.0f;
+DrawRectangleRounded(
+(Rectangle){panelX + 6, panelY + 6, panelW, panelH},
+0.18f, 10, (Color){0, 0, 0, 120});
+Color panelBg = g->importRunning
+? (Color){14, 40, 18, 248}
+: (Color){14, 42, 14, 248};
+DrawRectangleRounded(
+(Rectangle){panelX, panelY, panelW, panelH},
+0.18f, 10, panelBg);
+Color panelBorder = g->importRunning ? GREEN : LIME;
+DrawRectangleRoundedLinesEx(
+(Rectangle){panelX, panelY, panelW, panelH},
+0.18f, 10, 2.0f, panelBorder);
+const char *panelTitle = g->importRunning ? "Scanning..." : "Import Complete";
+DrawText(panelTitle,
+(int)(panelX + 20), (int)(panelY + 14), 22,
+g->importRunning ? GREEN : LIME);
+DrawLineEx(
+(Vector2){panelX + 20, panelY + 46},
+(Vector2){panelX + panelW - 20, panelY + 46},
+1.0f, (Color){40, 100, 50, 200});
+float rowY = panelY + 58.0f;
+float rowH = 38.0f;
+{
+char buf[32];
+snprintf(buf, sizeof(buf), "%d", (int)g->importTotal);
+DrawText("MP4 files found:", (int)(panelX + 20), (int)rowY, 20, LIGHTGRAY);
+int tw = MeasureText(buf, 22);
+DrawText(buf, (int)(panelX + panelW - tw - 20), (int)(rowY - 1), 22, WHITE);
+}
+rowY += rowH;
+{
+char buf[32];
+snprintf(buf, sizeof(buf), "%d", (int)g->importAdded);
+DrawText("Added to libraries:", (int)(panelX + 20), (int)rowY, 20, LIGHTGRAY);
+int tw = MeasureText(buf, 22);
+DrawText(buf, (int)(panelX + panelW - tw - 20), (int)(rowY - 1), 22, GREEN);
+}
+rowY += rowH;
+{
+char buf[32];
+snprintf(buf, sizeof(buf), "%d", (int)g->importSkipped);
+DrawText("Skipped (duplicates):", (int)(panelX + 20), (int)rowY, 20, LIGHTGRAY);
+int tw = MeasureText(buf, 22);
+DrawText(buf, (int)(panelX + panelW - tw - 20), (int)(rowY - 1), 22,
+g->importSkipped > 0 ? ORANGE : LIGHTGRAY);
+}
+rowY += rowH;
+DrawLineEx(
+(Vector2){panelX + 20, rowY},
+(Vector2){panelX + panelW - 20, rowY},
+1.0f, (Color){40, 80, 40, 140});
+rowY += 10.0f;
+DrawText("< 10 min: Music",       (int)(panelX + 20),         (int)rowY, 15, (Color){120, 200, 140, 220});
+DrawText("10-60 min: TV Shows",   (int)(panelX + 160),        (int)rowY, 15, (Color){100, 170, 220, 220});
+DrawText("> 60 min: Movies",      (int)(panelX + panelW - 154),(int)rowY, 15, (Color){220, 160, 100, 220});
+if (g->importDone && g->importFinishedTime > 0.0)
+{
+double remaining = 10.0 - (GetTime() - g->importFinishedTime);
+char dimBuf[32];
+snprintf(dimBuf, sizeof(dimBuf), "Closes in %.0fs",
+remaining > 0.0 ? remaining : 0.0);
+DrawText(dimBuf,
+(int)(panelX + 20), (int)(panelY + panelH - 24),
+15, DARKGRAY);
 }
 }
 }

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <pthread.h>
 #include <cjson/cJSON.h>
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
@@ -85,16 +86,20 @@ typedef struct
     int currentMediaIndex;
     int  genreFilteredSelectedIndex; 
     bool genreMediaFocus;            
-
-    
     int  settingsSelectedBtn;   
     bool settingsPanelOpen;     
-    int  settingsPanelIdx;      
-
-    
+    int  settingsPanelIdx;
+    bool showingMoveMenu;       
+    int  moveMenuSelectedIndex; 
     int       currentTheme;       
-    Texture2D darkThemeTexture;   
-
+    Texture2D darkThemeTexture;
+    pthread_t      importThread;
+    volatile bool  importRunning;      
+    volatile bool  importDone;         
+    volatile int   importAdded;        
+    volatile int   importSkipped;      
+    volatile int   importTotal;        
+    double         importFinishedTime; 
     mpv_handle *mpv;
     mpv_render_context *mpv_ctx;
 } AppState;
@@ -106,6 +111,7 @@ void SaveSettings(AppState *g);
 void LoadSettings(AppState *g);
 void SaveUserSettings(AppState *g);
 void LoadUserSettings(AppState *g);
+void ImportAllMp4(AppState *g);
 void GenerateOrLoadThumbnail(MediaLibrary *lib, int index);
 void RefreshThumbnails(MediaLibrary *lib);
 void DrawMediaGrid(AppState *g, MediaLibrary *lib, const char *title);
